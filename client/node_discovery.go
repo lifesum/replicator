@@ -6,6 +6,7 @@ import (
 
 	"github.com/elsevier-core-engineering/replicator/helper"
 	"github.com/elsevier-core-engineering/replicator/logging"
+	"github.com/elsevier-core-engineering/replicator/provider"
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
 	nomad "github.com/hashicorp/nomad/api"
 	nomadStructs "github.com/hashicorp/nomad/nomad/structs"
@@ -77,7 +78,11 @@ func (c *nomadClient) NodeWatcher(nodeRegistry *structs.NodeRegistry) {
 					continue
 				}
 
-				Register(nodeRecord, nodeConfig, nodeRegistry)
+				if err := Register(nodeRecord, nodeConfig, nodeRegistry); err != nil {
+					logging.Error("client/node_discovery: an error occurred while "+
+						"attempting to register node %v: %v", nodeRecord.ID, err)
+				}
+
 				if !nodeConfig.ScalingEnabled {
 					logging.Debug("client/node_discovery: scaling has been disabled "+
 						"on node %v, initiating deregistration of the node", node.ID)
@@ -136,6 +141,7 @@ func ProcessNodeConfig(node *nomad.Node) (pool *structs.WorkerPool, err error) {
 		"replicator_max",
 		"replicator_min",
 		"replicator_notification_uid",
+		"replicator_provider",
 		"replicator_region",
 		"replicator_worker_pool",
 	}
@@ -245,6 +251,14 @@ func Register(node *nomad.Node, workerPool *structs.WorkerPool,
 
 	// Add the node to the worker pool.
 	workerPool.Nodes[node.ID] = node
+
+	// Register the appropriate scaling provider with the worker pool.
+	scalingProvider, err := provider.NewScalingProvider(node.Meta)
+	if err != nil {
+		return fmt.Errorf("failed to initialize scaling provider for worker pool "+
+			"%v: %v", workerPool.Name, err)
+	}
+	workerPool.ScalingProvider = scalingProvider
 
 	logging.Debug("client/node_discovery: registering node %v with new worker "+
 		"pool %v", node.ID, workerPool.Name)

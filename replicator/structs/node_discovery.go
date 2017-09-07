@@ -42,5 +42,10 @@ type WorkerPool struct {
 	Region           string                 `mapstructure:"replicator_region"`
 	RetryThreshold   int                    `mapstructure:"replicator_retry_threshold"`
 	ScalingEnabled   bool                   `mapstructure:"replicator_enabled"`
+	ScalingProvider  ScalingProvider        `hash:"ignore"`
 	ScalingThreshold int                    `mapstructure:"replicator_scaling_threshold"`
 }
+
+// TODO (e.westfall): Can we keep track of a timestamp for each node discovery
+// to allow us to easily discover the most recent node without depending
+// on a provider specific method.

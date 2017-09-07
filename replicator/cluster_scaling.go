@@ -177,7 +177,7 @@ func (r *Runner) workerPoolScaling(poolName string,
 	// Setup session to AWS auto scaling service.
 	asgSess := client.NewAWSAsgService(workerPool.Region)
 
-	if poolCapacity.ScalingDirection == client.ScalingDirectionOut {
+	if poolCapacity.ScalingDirection == structs.ScalingDirectionOut {
 		// If we've determined the worker pool should be scaled out, initiate
 		// the scaling operation.
 		err = client.ScaleOutCluster(workerPool.Name, poolCapacity.NodeCount, asgSess)
