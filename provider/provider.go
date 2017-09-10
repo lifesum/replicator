@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/elsevier-core-engineering/replicator/logging"
@@ -33,13 +34,15 @@ func NewScalingProvider(conf map[string]string) (structs.ScalingProvider, error)
 	providerFactory, ok := BuiltinScalingProviders[providerName]
 	if !ok {
 		// Build a list of all supported scaling providers.
-		availableProviders := make([]string, len(BuiltinScalingProviders))
-		for k := range BuiltinScalingProviders {
-			availableProviders = append(availableProviders, k)
+		providers := reflect.ValueOf(BuiltinScalingProviders).MapKeys()
+		availableProviders := make([]string, len(providers))
+
+		for i := 0; i < len(providers); i++ {
+			availableProviders[i] = providers[i].String()
 		}
 
 		return nil, fmt.Errorf("unknown scaling provider %v, must be one of: %v",
-			providerName, strings.Join(availableProviders, ", "))
+			providerName, strings.Join(availableProviders, ","))
 	}
 
 	// Setup the scaling provider.
