@@ -8,16 +8,20 @@ import (
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
 )
 
-// BuiltinScalingProviders does stuff and things.
+// BuiltinScalingProviders tracks the available scaling providers.
+// The provider name is the name used when configuring nodes for autoscaling.
 var BuiltinScalingProviders = map[string]ScalingProviderFactory{
 	"aws": NewAwsScalingProvider,
 }
 
-// ScalingProviderFactory does stuff and things.
+// ScalingProviderFactory is a factory method type for instantiating a new
+// instance of a scaling provider.
 type ScalingProviderFactory func(
 	conf map[string]string) (structs.ScalingProvider, error)
 
-// NewScalingProvider does stuff and things.
+// NewScalingProvider is the entry point method for processing the scaling
+// provider configuration in worker pool nodes, finding the correct factory
+// method and setting up the scaling provider.
 func NewScalingProvider(conf map[string]string) (structs.ScalingProvider, error) {
 	// Query configuration for scaling provider name.
 	providerName, ok := conf["replicator_provider"]
@@ -38,7 +42,7 @@ func NewScalingProvider(conf map[string]string) (structs.ScalingProvider, error)
 			providerName, strings.Join(availableProviders, ", "))
 	}
 
-	// Instantiate the scaling provider.
+	// Setup the scaling provider.
 	scalingProvider, err := providerFactory(conf)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while setting up scaling "+

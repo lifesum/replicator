@@ -53,7 +53,6 @@ func (c *nomadClient) EvaluatePoolScaling(capacity *structs.ClusterCapacity,
 		return scale, err
 	}
 
-	// scale = true
 	logging.Debug("client/cluster_scaling: cluster scaling operation (%v) for "+
 		"worker pool %v passes the safety check and should be permitted",
 		capacity.ScalingDirection, workerPool.Name)
