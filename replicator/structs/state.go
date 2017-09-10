@@ -61,7 +61,7 @@ type ScalingState struct {
 
 	// ScalingDirection tracks the desired scaling direction of the resource,
 	// when a scaling operation is being requested.
-	ScalingDirection string `json:"scaling_direction"`
+	ScalingDirection string `json:"-"`
 
 	// StatePath stores the path where the object should be persisted.
 	StatePath string `json:"state_path"`
