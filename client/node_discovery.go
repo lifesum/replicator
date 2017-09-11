@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elsevier-core-engineering/replicator/cloudprovider"
 	"github.com/elsevier-core-engineering/replicator/helper"
 	"github.com/elsevier-core-engineering/replicator/logging"
-	"github.com/elsevier-core-engineering/replicator/provider"
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
 	nomad "github.com/hashicorp/nomad/api"
 	nomadStructs "github.com/hashicorp/nomad/nomad/structs"
@@ -259,7 +259,7 @@ func Register(node *nomad.Node, workerPool *structs.WorkerPool,
 	workerPool.Nodes[node.ID] = node
 
 	// Register the appropriate scaling provider with the worker pool.
-	scalingProvider, err := provider.NewScalingProvider(node.Meta)
+	scalingProvider, err := cloudprovider.NewScalingProvider(node.Meta)
 	if err != nil {
 		return fmt.Errorf("failed to initialize scaling provider for worker pool "+
 			"%v: %v", workerPool.Name, err)

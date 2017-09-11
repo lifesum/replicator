@@ -1,12 +1,7 @@
-package provider
+package cloudprovider
 
 import (
-	// "reflect"
-	// "sync"
 	"testing"
-	// "github.com/elsevier-core-engineering/replicator/helper"
-	// "github.com/elsevier-core-engineering/replicator/replicator/structs"
-	// "github.com/hashicorp/nomad/api"
 )
 
 // Test the parsing of scaling meta configuration parameters and

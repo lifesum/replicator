@@ -1,10 +1,11 @@
-package provider
+package cloudprovider
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/elsevier-core-engineering/replicator/cloudprovider/aws"
 	"github.com/elsevier-core-engineering/replicator/logging"
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
 )
@@ -12,7 +13,7 @@ import (
 // BuiltinScalingProviders tracks the available scaling providers.
 // The provider name is the name used when configuring nodes for autoscaling.
 var BuiltinScalingProviders = map[string]ScalingProviderFactory{
-	"aws": NewAwsScalingProvider,
+	"aws": aws.NewAwsScalingProvider,
 }
 
 // ScalingProviderFactory is a factory method type for instantiating a new
