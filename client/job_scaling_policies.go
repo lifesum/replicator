@@ -149,7 +149,7 @@ func updateScalingPolicy(jobName, groupName string, groupMeta map[string]string,
 	}
 
 	// Decode the meta and add the group name to the correct field as this is not
-	// availble in the meta.
+	// available in the meta.
 	if err = decoder.Decode(groupMeta); err != nil {
 		return
 	}
@@ -199,7 +199,7 @@ func updateScalingPolicy(jobName, groupName string, groupMeta map[string]string,
 
 // removeScalingPolicy will remove a particular JobGroups scaling policy and
 // will also remove the Job entry from the map if there are no longer any Group
-// policies assosiated to it. This is used for jobs which are still running.
+// policies associated to it. This is used for jobs which are still running.
 func removeGroupScalingPolicy(jobName, groupName string, scaling *structs.JobScalingPolicies) {
 	if val, ok := scaling.Policies[jobName]; ok {
 		for i, group := range val {

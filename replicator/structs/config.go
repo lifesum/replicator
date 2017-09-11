@@ -67,9 +67,6 @@ type Telemetry struct {
 
 // Notification is the control struct for Replicator notifications.
 type Notification struct {
-	// ClusterScalingUID is the UID to assosiate to the cluster scaling alert.
-	ClusterScalingUID string `mapstructure:"cluster_scaling_uid"`
-
 	// ClusterIdentifier is a friendly name which is used when sending
 	// notifications for easy human identification.
 	ClusterIdentifier string `mapstructure:"cluster_identifier"`
@@ -158,10 +155,6 @@ func (n *Notification) Merge(b *Notification) *Notification {
 
 	if b.ClusterIdentifier != "" {
 		config.ClusterIdentifier = b.ClusterIdentifier
-	}
-
-	if b.ClusterScalingUID != "" {
-		config.ClusterScalingUID = b.ClusterScalingUID
 	}
 
 	if b.PagerDutyServiceKey != "" {

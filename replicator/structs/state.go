@@ -6,7 +6,7 @@ import (
 )
 
 // ScalingState provides a state object that represents the state
-// of a scaleable worker pool or job group.
+// of a scalable worker pool or job group.
 type ScalingState struct {
 	// EligibleNodes tracks nodes marked as eligible for targeted scaling actions
 	EligibleNodes []string `json:"eligible_nodes"`

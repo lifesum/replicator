@@ -79,7 +79,7 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 	}
 
 	// Works if configs are valid
-	config, err = LoadConfigDir(dir)
+	_, err = LoadConfigDir(dir)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

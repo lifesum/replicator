@@ -74,7 +74,6 @@ func parseConfig(result *structs.Config, list *ast.ObjectList) error {
 		"consul_key_root",
 		"consul_token",
 		"log_level",
-		"log_level",
 		"job_scaling_interval",
 		"cluster_scaling_interval",
 		"telemetry",
@@ -154,7 +153,6 @@ func parseNotification(result **structs.Notification, list *ast.ObjectList) erro
 
 	// Check for invalid keys
 	valid := []string{
-		"cluster_scaling_uid",
 		"cluster_identifier",
 		"pagerduty_service_key",
 	}

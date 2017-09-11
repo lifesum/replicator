@@ -49,7 +49,7 @@ func (p *PagerDutyProvider) SendNotification(message FailureMessage) {
 
 	resp, err := pagerduty.CreateEvent(event)
 	if err != nil {
-		logging.Error("notifier/pagerduty: an error occured creating the PagerDuty event: %v", err)
+		logging.Error("notifier/pagerduty: an error occurred creating the PagerDuty event: %v", err)
 		return
 	}
 

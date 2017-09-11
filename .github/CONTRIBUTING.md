@@ -2,7 +2,7 @@
 
 **First** of all welcome and thank you for even considering to contribute to the replicator project. If you're unsure or afraid of anything, just ask or submit the issue or pull request anyways. You won't be yelled at for giving your best effort.
 
-If you wish to work on Replicator itself or any of its built-in systems, you will first need [Go](https://golang.org/) installed on your machine (version 1.8+ is required) and ensure your [GOPATH](https://golang.org/doc/code.html#GOPATH) is correctly configured.
+If you wish to work on Replicator itself or any of its built-in systems, you will first need [Go](https://golang.org/) installed on your machine (version 1.9+ is required) and ensure your [GOPATH](https://golang.org/doc/code.html#GOPATH) is correctly configured.
 
 # Building
 

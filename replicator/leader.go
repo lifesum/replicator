@@ -5,6 +5,11 @@ import (
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
 )
 
+const (
+	leaderElectionInterval = 10
+	leaderLockTimeout      = 12
+)
+
 // LeaderCandidate runs the leader election.
 type LeaderCandidate struct {
 	consulClient structs.ConsulClient
@@ -33,14 +38,9 @@ func (l *LeaderCandidate) isLeader() bool {
 }
 
 // leaderElection is the main entry in to the Replicator leadership locking
-// process and will create a Consul session for use in obtainibg the leader
+// process and will create a Consul session for use in obtaining the leader
 // lock.
 func (l *LeaderCandidate) leaderElection() (isLeader bool) {
-
-	// Always set ourself to assume we are not the leader, so that even the
-	// current leader must confirm its status and not blindly assume leadership.
-	l.leader = false
-
 	// Create our session and start the renew process if the candidate does not
 	// currently have one.
 	if l.session == "" {
@@ -64,11 +64,11 @@ func (l *LeaderCandidate) leaderElection() (isLeader bool) {
 		return true
 	}
 
-	logging.Debug("core/leader: failed to aquire leadership lock")
+	logging.Debug("core/leader: failed to acquire leadership lock")
 	return
 }
 
-// endCampaign attempts to gracefully remove sessions and locks assosiated with
+// endCampaign attempts to gracefully remove sessions and locks associated with
 // the replicator leadership locking, allowing other daemons to pick up the lock
 // without having to wait for the TTL to expire.
 func (l *LeaderCandidate) endCampaign() {

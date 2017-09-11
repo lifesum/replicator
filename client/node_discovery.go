@@ -58,7 +58,7 @@ func (c *nomadClient) NodeWatcher(nodeRegistry *structs.NodeRegistry) {
 				// parameters from the client stanza of the agent.
 				nodeRecord, _, err := c.nomad.Nodes().Info(node.ID, &nomad.QueryOptions{})
 				if err != nil {
-					logging.Error("client/node_discovery: an error occured while "+
+					logging.Error("client/node_discovery: an error occurred while "+
 						"attempting to retrieve node configuration details: %v", err)
 					continue
 				}

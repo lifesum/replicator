@@ -26,7 +26,7 @@ Usage: replicator failsafe [options]
   Allows an operator to administratively control the failsafe behavior
   of Replicator. When Replicator enters failsafe mode, all running
   copies of Replicator will prohibit any scaling operations on the
-	resource in question.
+  resource in question.
 
   Failsafe mode is intended to stabilize a cluster that has experienced
   critical failures while attempting to perform scaling operations.
@@ -200,7 +200,7 @@ func (c *FailsafeCommand) Run(args []string) int {
 			state.ResourceName, err))
 	}
 
-	c.UI.Info(fmt.Sprintf("Successfully %vd failsafe mode on for %v %v at "+
+	c.UI.Info(fmt.Sprintf("Successfully %vd failsafe mode for %v %v at "+
 		"location %s", conf.Verb, state.ResourceType, state.ResourceName,
 		c.statePath))
 

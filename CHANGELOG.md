@@ -1,4 +1,4 @@
-## 0.0.3 (Unreleased)
+## 1.0.0 (11 September 2017)
 
 IMPROVEMENTS:
 

@@ -104,7 +104,7 @@ func TestNodeDiscovery_ProcessNodeConfig(t *testing.T) {
 		_, err = ProcessNodeConfig(nodeRecord)
 		if err == nil {
 			t.Fatalf("node with no meta configuration parameters failed to " +
-				"throw an excpetion where one was expected")
+				"throw an exception where one was expected")
 		}
 	}
 
@@ -152,7 +152,7 @@ func TestNodeDiscovery_Deregister(t *testing.T) {
 
 		nodeConfig, err := ProcessNodeConfig(nodeRecord)
 		if err != nil {
-			t.Fatalf("an unexpected exception occured while processing node "+
+			t.Fatalf("an unexpected exception occurred while processing node "+
 				"configuration: %v", err)
 		}
 
@@ -196,7 +196,7 @@ func TestNodeDiscovery_Deregister(t *testing.T) {
 
 	// Attempt to deregister the second node.
 	if err := Deregister(nodes[1].ID, nodeRegistry); err != nil {
-		t.Fatalf("an unexpected error occured while attempting to deregister a " +
+		t.Fatalf("an unexpected error occurred while attempting to deregister a " +
 			"node from an existing worker pool")
 	}
 
@@ -216,7 +216,7 @@ func TestNodeDiscovery_Deregister(t *testing.T) {
 
 	// Deregister last node and confirm worker pool is also deregistered.
 	if err := Deregister(nodes[0].ID, nodeRegistry); err != nil {
-		t.Fatalf("an unexpected error occured while attempting to deregister a " +
+		t.Fatalf("an unexpected error occurred while attempting to deregister a " +
 			"node from an existing worker pool")
 	}
 
@@ -277,7 +277,7 @@ func TestNodeDiscovery_RegisterNode(t *testing.T) {
 	nodeRecord := mockNode(nodes[0])
 	nodeConfig, err := ProcessNodeConfig(nodeRecord)
 	if err != nil {
-		t.Fatalf("an unexpected exception occured while processing node "+
+		t.Fatalf("an unexpected exception occurred while processing node "+
 			"configuration: %v", err)
 	}
 
@@ -303,7 +303,7 @@ func TestNodeDiscovery_RegisterNode(t *testing.T) {
 	nodeRecord = mockNode(nodes[1])
 	nodeConfig, err = ProcessNodeConfig(nodeRecord)
 	if err != nil {
-		t.Fatalf("an unexpected exception occured while processing node "+
+		t.Fatalf("an unexpected exception occurred while processing node "+
 			"configuration: %v", err)
 	}
 
@@ -345,7 +345,7 @@ func TestNodeDiscovery_RegisterNode(t *testing.T) {
 	nodeRecord.Meta["replicator_max"] = "5"
 	nodeConfig, err = ProcessNodeConfig(nodeRecord)
 	if err != nil {
-		t.Fatalf("an unexpected exception occured while processing node "+
+		t.Fatalf("an unexpected exception occurred while processing node "+
 			"configuration: %v", err)
 	}
 

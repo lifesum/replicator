@@ -65,7 +65,7 @@ func (c *consulClient) CreateSession(ttl int, stopCh chan struct{}) (id string, 
 // AcquireLeadership attempts to acquire a Consul leadersip lock using the
 // provided session. If the lock is already taken this will return false in
 // a show that there is already a leader.
-func (c *consulClient) AcquireLeadership(key string, session *string) (aquired bool) {
+func (c *consulClient) AcquireLeadership(key string, session *string) (acquired bool) {
 
 	// Attempt to inspect the leadership key if it is available and present.
 	k, _, err := c.consul.KV().Get(key, nil)
@@ -82,7 +82,7 @@ func (c *consulClient) AcquireLeadership(key string, session *string) (aquired b
 		return false
 	}
 
-	// If the session is not valiad, set our state to default
+	// If the session is not valid, set our state to default
 	if s == nil {
 		logging.Error("client/consul: the Consul session %s has expired, revoking from Replicator", *session)
 		*session = ""
@@ -102,7 +102,7 @@ func (c *consulClient) AcquireLeadership(key string, session *string) (aquired b
 		Session: *session,
 	}
 
-	logging.Debug("client/consul: attempting to aquire leadership lock at %s", key)
+	logging.Debug("client/consul: attempting to acquire leadership lock at %s", key)
 	resp, _, err := c.consul.KV().Acquire(kp, nil)
 
 	if err != nil {

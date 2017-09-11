@@ -26,7 +26,6 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
     notification {
       pagerduty_service_key = "thistooisafakekey"
       cluster_identifier    = "nomad-prod"
-      cluster_scaling_uid   = "Nomad1"
     }
 
   `), t)
@@ -53,7 +52,6 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
 		Notification: &structs.Notification{
 			PagerDutyServiceKey: "thistooisafakekey",
 			ClusterIdentifier:   "nomad-prod",
-			ClusterScalingUID:   "Nomad1",
 		},
 	}
 	if !reflect.DeepEqual(c, expected) {

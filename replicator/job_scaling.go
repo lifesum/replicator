@@ -44,7 +44,7 @@ func (r *Runner) jobScaling(jobName string, jobScalingPolicies *structs.JobScali
 
 	// EvaluateJobScaling performs read/write to our map therefore we wrap it
 	// in a read/write lock and remove this as soon as possible as the
-	// remianing functions only need a read lock.
+	// remaining functions only need a read lock.
 	jobScalingPolicies.Lock.Lock()
 	err := nomadClient.EvaluateJobScaling(jobName, g)
 	jobScalingPolicies.Lock.Unlock()

@@ -32,7 +32,7 @@ func (c *nomadClient) EvaluatePoolScaling(capacity *structs.ClusterCapacity,
 	}
 
 	// Determine the scaling metric by computing the most heavily utilized
-	// scaleable resource on the worker pool.
+	// scalable resource on the worker pool.
 	c.MostUtilizedResource(capacity)
 
 	// Compute the maximum allowed utilization of the most-utilized resource in
@@ -178,7 +178,7 @@ func (c *nomadClient) calculatePoolConsumed(capacity *structs.ClusterCapacity,
 }
 
 // calculateScalingReserve computes the total capacity required to increment
-// all scaleable jobs running on the worker pool by one. This capacity is
+// all scalable jobs running on the worker pool by one. This capacity is
 // held in reserve for future scaling overhead.
 func (c *nomadClient) calculateScalingReserve(capacity *structs.ClusterCapacity,
 	jobs *structs.JobScalingPolicies, workerPool *structs.WorkerPool) error {

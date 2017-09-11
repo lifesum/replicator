@@ -27,7 +27,6 @@ func TestStructs_Merge(t *testing.T) {
 			StatsdAddress: "8.8.8.8:8125",
 		},
 		Notification: &Notification{
-			ClusterScalingUID:   "REP1",
 			ClusterIdentifier:   "nomad-rocks",
 			PagerDutyServiceKey: "onlyopsoncall",
 		},
@@ -47,7 +46,6 @@ func TestStructs_Merge(t *testing.T) {
 			StatsdAddress: "8.8.8.8:8125",
 		},
 		Notification: &Notification{
-			ClusterScalingUID:   "REP1",
 			ClusterIdentifier:   "nomad-rocks",
 			PagerDutyServiceKey: "onlyopsoncall",
 		},
@@ -65,7 +63,6 @@ func TestStructs_Merge(t *testing.T) {
 			StatsdAddress: "8.8.8.8:8125",
 		},
 		Notification: &Notification{
-			ClusterScalingUID:   "REP1",
 			ClusterIdentifier:   "nomad-rocks",
 			PagerDutyServiceKey: "onlyopsoncall",
 		},
@@ -85,7 +82,6 @@ func TestStructs_Merge(t *testing.T) {
 			StatsdAddress: "8.8.8.8:8125",
 		},
 		Notification: &Notification{
-			ClusterScalingUID:   "REP1",
 			ClusterIdentifier:   "nomad-rocks",
 			PagerDutyServiceKey: "onlyopsoncall",
 		},

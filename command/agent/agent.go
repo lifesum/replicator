@@ -142,7 +142,6 @@ func (c *Command) parseFlags() *structs.Config {
 	flags.StringVar(&cliConfig.Telemetry.StatsdAddress, "statsd-address", "", "")
 
 	// Notification configuration flags
-	flags.StringVar(&cliConfig.Notification.ClusterScalingUID, "cluster-scaling-uid", "", "")
 	flags.StringVar(&cliConfig.Notification.ClusterIdentifier, "cluster-identifier", "", "")
 	flags.StringVar(&cliConfig.Notification.PagerDutyServiceKey, "pagerduty-service-key", "", "")
 
@@ -331,12 +330,6 @@ func (c *Command) Help() string {
     -cluster-identifier=<name>
       A human readable cluster name to allow operators to quickly identify
       which cluster is alerting.
-
-    -cluster-scaling-uid=<uid>
-      The cluster scaling UID is an identifier which represents a run book
-      entry relating to failsafe resolution guidelines. When a notification
-      is sent upon failsafe mode being enabled, the alert will include this
-      UID.
 
     -pagerduty-service-key=<key>
       The PagerDuty integration key which has been setup to allow

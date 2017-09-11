@@ -12,7 +12,7 @@ type FailsafeMode struct {
 	// Enable instructs the failsafe CLI command to enable failsafe mode.
 	Enable bool
 
-	// Force supresses confirmation prompts when enabling/disabling failsafe.
+	// Force suppresses confirmation prompts when enabling/disabling failsafe.
 	Force bool
 
 	// Verb represents the action to be displayed during confirmation prompts.

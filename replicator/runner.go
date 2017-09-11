@@ -34,9 +34,10 @@ func NewRunner(config *structs.Config) (*Runner, error) {
 // on the configuration.
 func (r *Runner) Start() {
 
-	// Setup our LeaderCandidate object for leader elections and session renewl.
+	// Setup our LeaderCandidate object for leader elections and session renewal.
 	leaderKey := r.config.ConsulKeyRoot + "/" + "leader"
-	r.candidate = newLeaderCandidate(r.config.ConsulClient, leaderKey, 10)
+	r.candidate = newLeaderCandidate(r.config.ConsulClient, leaderKey,
+		leaderLockTimeout)
 	go r.leaderTicker()
 
 	jobScalingPolicy := newJobScalingPolicy()
@@ -69,7 +70,9 @@ func (r *Runner) Stop() {
 }
 
 func (r *Runner) leaderTicker() {
-	ticker := time.NewTicker(time.Second * time.Duration(10))
+	ticker := time.NewTicker(
+		time.Second * time.Duration(leaderElectionInterval),
+	)
 	defer ticker.Stop()
 
 	for {
@@ -85,7 +88,9 @@ func (r *Runner) leaderTicker() {
 }
 
 func (r *Runner) jobScalingTicker(jobPol *structs.JobScalingPolicies) {
-	ticker := time.NewTicker(time.Second * time.Duration(r.config.JobScalingInterval))
+	ticker := time.NewTicker(
+		time.Second * time.Duration(r.config.JobScalingInterval),
+	)
 	defer ticker.Stop()
 
 	for {
@@ -101,7 +106,9 @@ func (r *Runner) jobScalingTicker(jobPol *structs.JobScalingPolicies) {
 }
 
 func (r *Runner) clusterScalingTicker(nodeReg *structs.NodeRegistry, jobPol *structs.JobScalingPolicies) {
-	ticker := time.NewTicker(time.Second * time.Duration(r.config.ClusterScalingInterval))
+	ticker := time.NewTicker(
+		time.Second * time.Duration(r.config.ClusterScalingInterval),
+	)
 	defer ticker.Stop()
 
 	for {
