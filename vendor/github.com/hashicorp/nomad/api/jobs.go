@@ -21,6 +21,9 @@ const (
 
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 const (
@@ -372,11 +375,11 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 }
 
 func (u *UpdateStrategy) Canonicalize() {
-	if u.MaxParallel == nil {
-		u.MaxParallel = helper.IntToPtr(0)
-	}
-
 	d := structs.DefaultUpdateStrategy
+
+	if u.MaxParallel == nil {
+		u.MaxParallel = helper.IntToPtr(d.MaxParallel)
+	}
 
 	if u.Stagger == nil {
 		u.Stagger = helper.TimeToPtr(d.Stagger)
@@ -401,6 +404,43 @@ func (u *UpdateStrategy) Canonicalize() {
 	if u.Canary == nil {
 		u.Canary = helper.IntToPtr(d.Canary)
 	}
+}
+
+// Empty returns whether the UpdateStrategy is empty or has user defined values.
+func (u *UpdateStrategy) Empty() bool {
+	if u == nil {
+		return true
+	}
+
+	if u.Stagger != nil && *u.Stagger != 0 {
+		return false
+	}
+
+	if u.MaxParallel != nil && *u.MaxParallel != 0 {
+		return false
+	}
+
+	if u.HealthCheck != nil && *u.HealthCheck != "" {
+		return false
+	}
+
+	if u.MinHealthyTime != nil && *u.MinHealthyTime != 0 {
+		return false
+	}
+
+	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.Canary != nil && *u.Canary != 0 {
+		return false
+	}
+
+	return true
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -463,6 +503,7 @@ type ParameterizedJobConfig struct {
 type Job struct {
 	Stop              *bool
 	Region            *string
+	Namespace         *string
 	ID                *string
 	ParentID          *string
 	Name              *string
@@ -508,6 +549,9 @@ func (j *Job) Canonicalize() {
 	if j.ParentID == nil {
 		j.ParentID = helper.StringToPtr("")
 	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr(DefaultNamespace)
+	}
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
 	}
@@ -516,6 +560,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Region == nil {
 		j.Region = helper.StringToPtr("global")
+	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr("default")
 	}
 	if j.Type == nil {
 		j.Type = helper.StringToPtr("service")
@@ -561,9 +608,10 @@ func (j *Job) Canonicalize() {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
-	JobID    string
-	Summary  map[string]TaskGroupSummary
-	Children *JobChildrenSummary
+	JobID     string
+	Namespace string
+	Summary   map[string]TaskGroupSummary
+	Children  *JobChildrenSummary
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -692,6 +740,12 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// Namespace is the target namespace for this write
+	Namespace string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // JobValidateRequest is used to validate a job
@@ -709,7 +763,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include

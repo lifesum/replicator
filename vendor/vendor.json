@@ -379,34 +379,40 @@
 			"revisionTime": "2017-02-17T16:47:38Z"
 		},
 		{
-			"checksumSHA1": "o4WnZLWfSGYHnMkQwMybG0mvI2E=",
+			"checksumSHA1": "Fh9yl0ZeuPJajYF0ouvMjfkg/GI=",
 			"path": "github.com/hashicorp/nomad/api",
-			"revision": "d1aa60bdf42ff4816613ceb53077b5c4629fd353",
-			"revisionTime": "2017-08-07T23:40:54Z"
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
 		},
 		{
-			"checksumSHA1": "b7n7AQRAa7Lb763wJEjpxXaQZ00=",
+			"checksumSHA1": "Is7OvHxCEEkKpdQnW8olCxL0444=",
+			"path": "github.com/hashicorp/nomad/api/contexts",
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
+		},
+		{
+			"checksumSHA1": "GpikwcF9oi5Rrs/58xDSfiMy/I8=",
 			"path": "github.com/hashicorp/nomad/helper",
-			"revision": "e943b953c19b862e3e4c4ba5fd311d52e9058499",
-			"revisionTime": "2017-03-15T18:30:28Z"
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
 		},
 		{
 			"checksumSHA1": "UOuTIv1Ef6r3cN9fImCq1SNQnCs=",
 			"path": "github.com/hashicorp/nomad/helper/args",
-			"revision": "e943b953c19b862e3e4c4ba5fd311d52e9058499",
-			"revisionTime": "2017-03-15T18:30:28Z"
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
 		},
 		{
 			"checksumSHA1": "J7j/5Jtk8la/xEAtu4e/6KIiqzs=",
 			"path": "github.com/hashicorp/nomad/helper/flatmap",
-			"revision": "e943b953c19b862e3e4c4ba5fd311d52e9058499",
-			"revisionTime": "2017-03-15T18:30:28Z"
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
 		},
 		{
-			"checksumSHA1": "dKuf/y8L3Q8vx/3OkVgQQ84137M=",
+			"checksumSHA1": "sFf81LLk4L1daUUsFD4LaWblDuc=",
 			"path": "github.com/hashicorp/nomad/nomad/structs",
-			"revision": "d1aa60bdf42ff4816613ceb53077b5c4629fd353",
-			"revisionTime": "2017-08-07T23:40:54Z"
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
 		},
 		{
 			"checksumSHA1": "wpirHJV/6VEbbD+HyAP2/6Xc0ek=",

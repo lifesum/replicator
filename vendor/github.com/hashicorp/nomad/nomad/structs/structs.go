@@ -20,10 +20,13 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -33,8 +36,13 @@ import (
 )
 
 var (
-	ErrNoLeader     = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath = fmt.Errorf("No path to region")
+	ErrNoLeader         = fmt.Errorf("No cluster leader")
+	ErrNoRegionPath     = fmt.Errorf("No path to region")
+	ErrTokenNotFound    = errors.New("ACL token not found")
+	ErrPermissionDenied = errors.New("Permission denied")
+
+	// validPolicyName is used to validate a policy name
+	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 type MessageType uint8
@@ -59,6 +67,11 @@ const (
 	DeploymentAllocHealthRequestType
 	DeploymentDeleteRequestType
 	JobStabilityRequestType
+	ACLPolicyUpsertRequestType
+	ACLPolicyDeleteRequestType
+	ACLTokenUpsertRequestType
+	ACLTokenDeleteRequestType
+	ACLTokenBootstrapRequestType
 )
 
 const (
@@ -87,7 +100,41 @@ const (
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"
+
+	// maxPolicyDescriptionLength limits a policy description length
+	maxPolicyDescriptionLength = 256
+
+	// maxTokenNameLength limits a ACL token name length
+	maxTokenNameLength = 64
+
+	// ACLClientToken and ACLManagementToken are the only types of tokens
+	ACLClientToken     = "client"
+	ACLManagementToken = "management"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace            = "default"
+	DefaultNamespaceDescription = "Default shared namespace"
 )
+
+// Context defines the scope in which a search for Nomad object operates, and
+// is also used to query the matching index value for this context
+type Context string
+
+const (
+	Allocs      Context = "allocs"
+	Deployments Context = "deployment"
+	Evals       Context = "evals"
+	Jobs        Context = "jobs"
+	Nodes       Context = "nodes"
+	Namespaces  Context = "namespaces"
+	All         Context = "all"
+)
+
+// NamespacedID is a tuple of an ID and a namespace
+type NamespacedID struct {
+	ID        string
+	Namespace string
+}
 
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
@@ -100,6 +147,9 @@ type RPCInfo interface {
 type QueryOptions struct {
 	// The target region for this query
 	Region string
+
+	// Namespace is the target namespace for the query.
+	Namespace string
 
 	// If set, wait until query exceeds given index. Must be provided
 	// with MaxQueryTime.
@@ -114,10 +164,20 @@ type QueryOptions struct {
 
 	// If set, used as prefix for resource list searches
 	Prefix string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (q QueryOptions) RequestRegion() string {
 	return q.Region
+}
+
+func (q QueryOptions) RequestNamespace() string {
+	if q.Namespace == "" {
+		return DefaultNamespace
+	}
+	return q.Namespace
 }
 
 // QueryOption only applies to reads, so always true
@@ -132,11 +192,24 @@ func (q QueryOptions) AllowStaleRead() bool {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// Namespace is the target namespace for the write.
+	Namespace string
+
+	// SecretID is secret portion of the ACL token used for the request
+	SecretID string
 }
 
 func (w WriteRequest) RequestRegion() string {
 	// The target region for this request
 	return w.Region
+}
+
+func (w WriteRequest) RequestNamespace() string {
+	if w.Namespace == "" {
+		return DefaultNamespace
+	}
+	return w.Namespace
 }
 
 // WriteRequest only applies to writes, always false
@@ -231,31 +304,33 @@ type NodeSpecificRequest struct {
 	QueryOptions
 }
 
-// ResourceListResponse is used to return matches and information about whether
+// SearchResponse is used to return matches and information about whether
 // the match list is truncated specific to each type of context.
-type ResourceListResponse struct {
-	// Map of context types to resource ids which match a specified prefix
-	Matches map[string][]string
+type SearchResponse struct {
+	// Map of context types to ids which match a specified prefix
+	Matches map[Context][]string
 
 	// Truncations indicates whether the matches for a particular context have
 	// been truncated
-	Truncations map[string]bool
+	Truncations map[Context]bool
 
 	QueryMeta
 }
 
-// ResourceListRequest is used to parameterize a resources request, and returns a
-// subset of information for jobs, allocations, evaluations, and nodes, along
-// with whether or not the information returned is truncated.
-type ResourceListRequest struct {
-	// Prefix is what resources are matched to. I.e, if the given prefix were
+// SearchRequest is used to parameterize a request, and returns a
+// list of matches made up of jobs, allocations, evaluations, and/or nodes,
+// along with whether or not the information returned is truncated.
+type SearchRequest struct {
+	// Prefix is what ids are matched to. I.e, if the given prefix were
 	// "a", potential matches might be "abcd" or "aabb"
 	Prefix string
 
-	// Context is the resource that can be matched. A context can be a job, node,
-	// evaluation, allocation, or empty (indicated every context should be
+	// Context is the type that can be matched against. A context can be a job,
+	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
-	Context string
+	Context Context
+
+	QueryOptions
 }
 
 // JobRegisterRequest is used for Job.Register endpoint
@@ -523,7 +598,7 @@ type DeriveVaultTokenResponse struct {
 	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
 
-	// Error stores any error that occured. Errors are stored here so we can
+	// Error stores any error that occurred. Errors are stored here so we can
 	// communicate whether it is retriable
 	Error *RecoverableError
 
@@ -688,7 +763,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include
@@ -1057,6 +1132,7 @@ func (n *Node) Stub() *NodeListStub {
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
 		NodeClass:         n.NodeClass,
+		Version:           n.Attributes["nomad.version"],
 		Drain:             n.Drain,
 		Status:            n.Status,
 		StatusDescription: n.StatusDescription,
@@ -1072,6 +1148,7 @@ type NodeListStub struct {
 	Datacenter        string
 	Name              string
 	NodeClass         string
+	Version           string
 	Drain             bool
 	Status            string
 	StatusDescription string
@@ -1385,6 +1462,9 @@ type Job struct {
 	// Region is the Nomad region that handles scheduling this job
 	Region string
 
+	// Namespace is the namespace the job is submitted into.
+	Namespace string
+
 	// ID is a unique identifier for the job per region. It can be
 	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
@@ -1473,11 +1553,20 @@ type Job struct {
 // when registering a Job. A set of warnings are returned if the job was changed
 // in anyway that the user should be made aware of.
 func (j *Job) Canonicalize() (warnings error) {
+	if j == nil {
+		return nil
+	}
+
 	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
 		j.Meta = nil
+	}
+
+	// Ensure the job is in a namespace.
+	if j.Namespace == "" {
+		j.Namespace = DefaultNamespace
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -1613,6 +1702,9 @@ func (j *Job) Validate() error {
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	}
+	if j.Namespace == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}
 	switch j.Type {
 	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem:
@@ -1920,7 +2012,11 @@ type JobListStub struct {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
+	// JobID is the ID of the job the summary is for
 	JobID string
+
+	// Namespace is the namespace of the job and its summary
+	Namespace string
 
 	// Summmary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
@@ -1995,7 +2091,7 @@ var (
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
 		Stagger:         30 * time.Second,
-		MaxParallel:     0,
+		MaxParallel:     1,
 		HealthCheck:     UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 5 * time.Minute,
@@ -2059,8 +2155,8 @@ func (u *UpdateStrategy) Validate() error {
 		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
-	if u.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+	if u.MaxParallel < 1 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than one: %d < 1", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
@@ -2230,8 +2326,9 @@ const (
 
 // PeriodicLaunch tracks the last launch time of a periodic job.
 type PeriodicLaunch struct {
-	ID     string    // ID of the periodic job.
-	Launch time.Time // The last launch time.
+	ID        string    // ID of the periodic job.
+	Namespace string    // Namespace of the periodic job
+	Launch    time.Time // The last launch time.
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -2658,17 +2755,19 @@ const (
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
-	Name          string        // Name of the check, defaults to id
-	Type          string        // Type of the check - tcp, http, docker and script
-	Command       string        // Command is the command to run for script checks
-	Args          []string      // Args is a list of argumes for script checks
-	Path          string        // path of the health check url for http type check
-	Protocol      string        // Protocol to use if check is http, defaults to http
-	PortLabel     string        // The port to use for tcp/http checks
-	Interval      time.Duration // Interval of the check
-	Timeout       time.Duration // Timeout of the response from the check before consul fails the check
-	InitialStatus string        // Initial status of the check
-	TLSSkipVerify bool          // Skip TLS verification when Protocol=https
+	Name          string              // Name of the check, defaults to id
+	Type          string              // Type of the check - tcp, http, docker and script
+	Command       string              // Command is the command to run for script checks
+	Args          []string            // Args is a list of argumes for script checks
+	Path          string              // path of the health check url for http type check
+	Protocol      string              // Protocol to use if check is http, defaults to http
+	PortLabel     string              // The port to use for tcp/http checks
+	Interval      time.Duration       // Interval of the check
+	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus string              // Initial status of the check
+	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
+	Method        string              // HTTP Method to use (GET by default)
+	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2677,14 +2776,26 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	}
 	nsc := new(ServiceCheck)
 	*nsc = *sc
+	nsc.Args = helper.CopySliceString(sc.Args)
+	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
 	return nsc
 }
 
 func (sc *ServiceCheck) Canonicalize(serviceName string) {
-	// Ensure empty slices are treated as null to avoid scheduling issues when
-	// using DeepEquals.
+	// Ensure empty maps/slices are treated as null to avoid scheduling
+	// issues when using DeepEquals.
 	if len(sc.Args) == 0 {
 		sc.Args = nil
+	}
+
+	if len(sc.Header) == 0 {
+		sc.Header = nil
+	} else {
+		for k, v := range sc.Header {
+			if len(v) == 0 {
+				sc.Header[k] = nil
+			}
+		}
 	}
 
 	if sc.Name == "" {
@@ -2696,28 +2807,15 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 func (sc *ServiceCheck) validate() error {
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
-		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
-		} else if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
-		}
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
 
-		if sc.Timeout == 0 {
-			return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
-		} else if sc.Timeout < minCheckTimeout {
-			return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
-		}
 	case ServiceCheckScript:
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
 		}
-
-		// TODO: enforce timeout on the Client side and reenable
-		// validation.
 	default:
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
@@ -2726,6 +2824,12 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
 		return fmt.Errorf("interval (%v) cannot be lower than %v", sc.Interval, minCheckInterval)
+	}
+
+	if sc.Timeout == 0 {
+		return fmt.Errorf("missing required value timeout. Timeout cannot be less than %v", minCheckInterval)
+	} else if sc.Timeout < minCheckTimeout {
+		return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 	}
 
 	switch sc.InitialStatus {
@@ -2768,10 +2872,23 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	io.WriteString(h, sc.PortLabel)
 	io.WriteString(h, sc.Interval.String())
 	io.WriteString(h, sc.Timeout.String())
+	io.WriteString(h, sc.Method)
 	// Only include TLSSkipVerify if set to maintain ID stability with Nomad <0.6
 	if sc.TLSSkipVerify {
 		io.WriteString(h, "true")
 	}
+
+	// Since map iteration order isn't stable we need to write k/v pairs to
+	// a slice and sort it before hashing.
+	if len(sc.Header) > 0 {
+		headers := make([]string, 0, len(sc.Header))
+		for k, v := range sc.Header {
+			headers = append(headers, k+strings.Join(v, ""))
+		}
+		sort.Strings(headers)
+		io.WriteString(h, strings.Join(headers, ""))
+	}
+
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -2993,6 +3110,10 @@ type Task struct {
 	// Leader marks the task as the leader within the group. When the leader
 	// task exits, other tasks will be gracefully terminated.
 	Leader bool
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay time.Duration
 }
 
 func (t *Task) Copy() *Task {
@@ -3100,8 +3221,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
 	}
-	if t.KillTimeout.Nanoseconds() < 0 {
+	if t.KillTimeout < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	}
+	if t.ShutdownDelay < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 	}
 
 	// Validate the resources.
@@ -3539,6 +3663,9 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
+
+	// TaskGenericMessage is used by various subsystems to emit a message.
+	TaskGenericMessage = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -3600,6 +3727,9 @@ type TaskEvent struct {
 
 	// DriverMessage indicates a driver action being taken.
 	DriverMessage string
+
+	// GenericSource is the source of a message.
+	GenericSource string
 }
 
 func (te *TaskEvent) GoString() string {
@@ -3628,7 +3758,7 @@ func NewTaskEvent(event string) *TaskEvent {
 	}
 }
 
-// SetSetupError is used to store an error that occured while setting up the
+// SetSetupError is used to store an error that occurred while setting up the
 // task
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
@@ -3736,6 +3866,11 @@ func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
+	return e
+}
+
+func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
+	e.GenericSource = s
 	return e
 }
 
@@ -3918,12 +4053,6 @@ func (c *Constraint) Validate() error {
 	switch c.Operand {
 	case ConstraintDistinctHosts:
 		requireLtarget = false
-		if c.RTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow RTarget. Got %q", c.RTarget))
-		}
-		if c.LTarget != "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct hosts constraint doesn't allow LTarget. Got %q", c.LTarget))
-		}
 	case ConstraintSetContains:
 		if c.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
@@ -4008,7 +4137,7 @@ const (
 	VaultChangeModeRestart = "restart"
 )
 
-// Vault stores the set of premissions a task needs access to from Vault.
+// Vault stores the set of permissions a task needs access to from Vault.
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
@@ -4063,7 +4192,7 @@ func (v *Vault) Validate() error {
 
 	for _, p := range v.Policies {
 		if p == "root" {
-			multierror.Append(&mErr, fmt.Errorf("Can not specifiy \"root\" policy"))
+			multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))
 		}
 	}
 
@@ -4106,11 +4235,20 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
+// DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
+// a deployment when there is no target to rollback to but autorevet is desired.
+func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
+	return fmt.Sprintf("%s - no stable job version to auto revert to", baseDescription)
+}
+
 // Deployment is the object that represents a job deployment which is used to
-// transistion a job between versions.
+// transition a job between versions.
 type Deployment struct {
 	// ID is a generated UUID for the deployment
 	ID string
+
+	// Namespace is the namespace the deployment is created in
+	Namespace string
 
 	// JobID is the job the deployment is created for
 	JobID string
@@ -4145,6 +4283,7 @@ type Deployment struct {
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
 		ID:                GenerateUUID(),
+		Namespace:         job.Namespace,
 		JobID:             job.ID,
 		JobVersion:        job.Version,
 		JobModifyIndex:    job.ModifyIndex,
@@ -4305,6 +4444,9 @@ const (
 type Allocation struct {
 	// ID of the allocation (UUID)
 	ID string
+
+	// Namespace is the namespace the allocation is created in
+	Namespace string
 
 	// ID of the evaluation that generated this allocation
 	EvalID string
@@ -4756,6 +4898,9 @@ type Evaluation struct {
 	// is assigned upon the creation of the evaluation.
 	ID string
 
+	// Namespace is the namespace the evaluation is created in
+	Namespace string
+
 	// Priority is used to control scheduling importance and if this job
 	// can preempt other jobs.
 	Priority int
@@ -4852,7 +4997,7 @@ func (e *Evaluation) TerminalStatus() bool {
 }
 
 func (e *Evaluation) GoString() string {
-	return fmt.Sprintf("<Eval '%s' JobID: '%s'>", e.ID, e.JobID)
+	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
 }
 
 func (e *Evaluation) Copy() *Evaluation {
@@ -4938,6 +5083,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerRollingUpdate,
@@ -4955,6 +5101,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
 		ID:                   GenerateUUID(),
+		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
 		TriggeredBy:          e.TriggeredBy,
@@ -4968,11 +5115,12 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 }
 
 // CreateFailedFollowUpEval creates a follow up evaluation when the current one
-// has been marked as failed becasue it has hit the delivery limit and will not
+// has been marked as failed because it has hit the delivery limit and will not
 // be retried by the eval_broker.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             GenerateUUID(),
+		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
 		TriggeredBy:    EvalTriggerFailedFollowUp,
@@ -5102,7 +5250,7 @@ type PlanResult struct {
 	// Deployment is the deployment that was committed.
 	Deployment *Deployment
 
-	// DeploymentUpdates is the set of deployment updates that were commited.
+	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
 	// RefreshIndex is the index the worker should refresh state up to.
@@ -5268,4 +5416,310 @@ func IsRecoverable(e error) bool {
 		return re.IsRecoverable()
 	}
 	return false
+}
+
+// ACLPolicy is used to represent an ACL policy
+type ACLPolicy struct {
+	Name        string // Unique name
+	Description string // Human readable
+	Rules       string // HCL or JSON format
+	Hash        []byte
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL policy
+func (c *ACLPolicy) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(c.Name))
+	hash.Write([]byte(c.Description))
+	hash.Write([]byte(c.Rules))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	c.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLPolicy) Stub() *ACLPolicyListStub {
+	return &ACLPolicyListStub{
+		Name:        a.Name,
+		Description: a.Description,
+		Hash:        a.Hash,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+func (a *ACLPolicy) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(a.Name) {
+		err := fmt.Errorf("invalid name '%s'", a.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if _, err := acl.Parse(a.Rules); err != nil {
+		err = fmt.Errorf("failed to parse rules: %v", err)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(a.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLPolicyListStub is used to for listing ACL policies
+type ACLPolicyListStub struct {
+	Name        string
+	Description string
+	Hash        []byte
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ACLPolicyListRequest is used to request a list of policies
+type ACLPolicyListRequest struct {
+	QueryOptions
+}
+
+// ACLPolicySpecificRequest is used to query a specific policy
+type ACLPolicySpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// ACLPolicySetRequest is used to query a set of policies
+type ACLPolicySetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// ACLPolicyListResponse is used for a list request
+type ACLPolicyListResponse struct {
+	Policies []*ACLPolicyListStub
+	QueryMeta
+}
+
+// SingleACLPolicyResponse is used to return a single policy
+type SingleACLPolicyResponse struct {
+	Policy *ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicySetResponse is used to return a set of policies
+type ACLPolicySetResponse struct {
+	Policies map[string]*ACLPolicy
+	QueryMeta
+}
+
+// ACLPolicyDeleteRequest is used to delete a set of policies
+type ACLPolicyDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// ACLPolicyUpsertRequest is used to upsert a set of policies
+type ACLPolicyUpsertRequest struct {
+	Policies []*ACLPolicy
+	WriteRequest
+}
+
+// ACLToken represents a client token which is used to Authenticate
+type ACLToken struct {
+	AccessorID  string   // Public Accessor ID (UUID)
+	SecretID    string   // Secret ID, private (UUID)
+	Name        string   // Human friendly name
+	Type        string   // Client or Management
+	Policies    []string // Policies this token ties to
+	Global      bool     // Global or Region local
+	Hash        []byte
+	CreateTime  time.Time // Time of creation
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+var (
+	// AnonymousACLToken is used no SecretID is provided, and the
+	// request is made anonymously.
+	AnonymousACLToken = &ACLToken{
+		AccessorID: "anonymous",
+		Name:       "Anonymous Token",
+		Type:       ACLClientToken,
+		Policies:   []string{"anonymous"},
+		Global:     false,
+	}
+)
+
+type ACLTokenListStub struct {
+	AccessorID  string
+	Name        string
+	Type        string
+	Policies    []string
+	Global      bool
+	Hash        []byte
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the ACL token
+func (a *ACLToken) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(a.Name))
+	hash.Write([]byte(a.Type))
+	for _, policyName := range a.Policies {
+		hash.Write([]byte(policyName))
+	}
+	if a.Global {
+		hash.Write([]byte("global"))
+	} else {
+		hash.Write([]byte("local"))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	a.Hash = hashVal
+	return hashVal
+}
+
+func (a *ACLToken) Stub() *ACLTokenListStub {
+	return &ACLTokenListStub{
+		AccessorID:  a.AccessorID,
+		Name:        a.Name,
+		Type:        a.Type,
+		Policies:    a.Policies,
+		Global:      a.Global,
+		Hash:        a.Hash,
+		CreateTime:  a.CreateTime,
+		CreateIndex: a.CreateIndex,
+		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// Validate is used to sanity check a token
+func (a *ACLToken) Validate() error {
+	var mErr multierror.Error
+	if len(a.Name) > maxTokenNameLength {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token name too long"))
+	}
+	switch a.Type {
+	case ACLClientToken:
+		if len(a.Policies) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("client token missing policies"))
+		}
+	case ACLManagementToken:
+		if len(a.Policies) != 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("management token cannot be associated with policies"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("token type must be client or management"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// PolicySubset checks if a given set of policies is a subset of the token
+func (a *ACLToken) PolicySubset(policies []string) bool {
+	// Hot-path the management tokens, superset of all policies.
+	if a.Type == ACLManagementToken {
+		return true
+	}
+	associatedPolicies := make(map[string]struct{}, len(a.Policies))
+	for _, policy := range a.Policies {
+		associatedPolicies[policy] = struct{}{}
+	}
+	for _, policy := range policies {
+		if _, ok := associatedPolicies[policy]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// ACLTokenListRequest is used to request a list of tokens
+type ACLTokenListRequest struct {
+	GlobalOnly bool
+	QueryOptions
+}
+
+// ACLTokenSpecificRequest is used to query a specific token
+type ACLTokenSpecificRequest struct {
+	AccessorID string
+	QueryOptions
+}
+
+// ACLTokenSetRequest is used to query a set of tokens
+type ACLTokenSetRequest struct {
+	AccessorIDS []string
+	QueryOptions
+}
+
+// ACLTokenListResponse is used for a list request
+type ACLTokenListResponse struct {
+	Tokens []*ACLTokenListStub
+	QueryMeta
+}
+
+// SingleACLTokenResponse is used to return a single token
+type SingleACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenSetResponse is used to return a set of token
+type ACLTokenSetResponse struct {
+	Tokens map[string]*ACLToken // Keyed by Accessor ID
+	QueryMeta
+}
+
+// ResolveACLTokenRequest is used to resolve a specific token
+type ResolveACLTokenRequest struct {
+	SecretID string
+	QueryOptions
+}
+
+// ResolveACLTokenResponse is used to resolve a single token
+type ResolveACLTokenResponse struct {
+	Token *ACLToken
+	QueryMeta
+}
+
+// ACLTokenDeleteRequest is used to delete a set of tokens
+type ACLTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// ACLTokenBootstrapRequest is used to bootstrap ACLs
+type ACLTokenBootstrapRequest struct {
+	Token      *ACLToken // Not client specifiable
+	ResetIndex uint64    // Reset index is used to clear the bootstrap token
+	WriteRequest
+}
+
+// ACLTokenUpsertRequest is used to upsert a set of tokens
+type ACLTokenUpsertRequest struct {
+	Tokens []*ACLToken
+	WriteRequest
+}
+
+// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
+type ACLTokenUpsertResponse struct {
+	Tokens []*ACLToken
+	WriteMeta
 }
