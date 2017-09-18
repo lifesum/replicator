@@ -4,13 +4,16 @@ name: replicator
 tasks:
   - name: agent
     cluster_target: api
-    command: ['/replicator agent -nomad=$NOMAD_HOST']
+    command: ['/replicator agent -log-level=debug']
+    network:
+      mode: host
     resources:
       cpu_reservation: 256
       memory_reservation: 256
     type: worker
 environment:
-  NOMAD_HOST: 'nomad.$(SYSTEM_DOMAIN)'
+  NOMAD_HOST: 'https://nomad.$(SYSTEM_DOMAIN)'
+  CONSUL_HOST: 'consul.$(SYSTEM_DOMAIN):8500'
 provisioning:
   image: lifesum-docker/base:latest
   commands:
