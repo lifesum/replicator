@@ -180,6 +180,10 @@ func (c *nomadClient) IsJobInDeployment(jobName string) (isRunning bool) {
 		return
 	}
 
+	if resp == nil {
+		return false
+	}
+
 	switch resp.Status {
 	case nomadstructs.DeploymentStatusRunning:
 		return true
