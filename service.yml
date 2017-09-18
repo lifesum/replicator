@@ -4,7 +4,7 @@ name: replicator
 tasks:
   - name: agent
     cluster_target: api
-    command: ['/replicator -nomad=$NOMAD_HOST']
+    command: ['/replicator agent -nomad=$NOMAD_HOST']
     resources:
       cpu_reservation: 256
       memory_reservation: 256
