@@ -1,0 +1,41 @@
+---
+version: 1.2
+name: replicator
+tasks:
+  - name: agent
+    cluster_target: api
+    command: ['/replicator agent -log-level=debug']
+    network:
+      mode: host
+    resources:
+      cpu_reservation: 256
+      memory_reservation: 256
+    type: worker
+environment:
+  NOMAD_HOST: 'https://nomad.$(SYSTEM_DOMAIN)'
+  CONSUL_HOST: 'consul.$(SYSTEM_DOMAIN):8500'
+provisioning:
+  image: lifesum-docker/base:latest
+  commands:
+  - command: shell
+    config:
+      commands:
+      - mkdir -p /go/src/github.com/elsevier-core-engineering/
+  - command: src-copy
+    config:
+      destination: /go/src/github.com/elsevier-core-engineering/replicator
+  - command: apk-packages
+    config:
+      add:
+      - alpine-sdk
+      - go
+  - command: shell
+    config:
+      commands:
+      - cd /go/src/github.com/elsevier-core-engineering/replicator && GOPATH=/go make
+      - cp /go/bin/replicator /replicator && rm -rf /go
+  - command: apk-packages
+    config:
+      remove:
+      - alpine-sdk
+      - go
