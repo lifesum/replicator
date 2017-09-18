@@ -9,6 +9,5 @@ const (
 	Evals       Context = "evals"
 	Jobs        Context = "jobs"
 	Nodes       Context = "nodes"
-	Namespaces  Context = "namespaces"
 	All         Context = "all"
 )

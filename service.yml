@@ -14,9 +14,13 @@ environment:
 provisioning:
   image: lifesum-docker/base:latest
   commands:
+  - command: shell
+    config:
+      commands:
+      - mkdir -p /go/src/github.com/elsevier-core-engineering/
   - command: src-copy
     config:
-      destination: /replicator
+      destination: /go/src/github.com/elsevier-core-engineering/replicator
   - command: apk-packages
     config:
       add:
@@ -25,7 +29,8 @@ provisioning:
   - command: shell
     config:
       commands:
-      - mkdir -p /go/src/github.com/elsevier-core-engineering/ && ln -sf /replicator /go/src/github.com/elsevier-core-engineering/ && cd /go/src/github.com/elsevier-core-engineering/replicator && GOPATH=/go make
+      - cd /go/src/github.com/elsevier-core-engineering/replicator && GOPATH=/go make
+      - cp /go/bin/replicator /replicator && rm -rf /go
   - command: apk-packages
     config:
       remove:
