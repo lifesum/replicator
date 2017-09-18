@@ -379,6 +379,12 @@
 			"revisionTime": "2017-02-17T16:47:38Z"
 		},
 		{
+			"checksumSHA1": "hkmwFQzekPCa+xBkfya/E2qvFzk=",
+			"path": "github.com/hashicorp/nomad/acl",
+			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
+			"revisionTime": "2017-09-14T04:48:52Z"
+		},
+		{
 			"checksumSHA1": "Fh9yl0ZeuPJajYF0ouvMjfkg/GI=",
 			"path": "github.com/hashicorp/nomad/api",
 			"revision": "a88ce5439d5e867f14e2a0af51d0be0de768e82e",
@@ -522,6 +528,12 @@
 			"path": "github.com/ugorji/go/codec",
 			"revision": "e943b953c19b862e3e4c4ba5fd311d52e9058499",
 			"revisionTime": "2017-03-15T18:30:28Z"
+		},
+		{
+			"checksumSHA1": "bWAPpiqKRPbYd+LKm1LNpmOcMHQ=",
+			"path": "golang.org/x/crypto/blake2b",
+			"revision": "2b786ab9e9649dc660afa3bd580fd05a05e20d95",
+			"revisionTime": "2016-12-19T07:27:34Z"
 		},
 		{
 			"checksumSHA1": "NqlOcIqzDg46JUFFXqZdKUER0B0=",
