@@ -241,6 +241,8 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 			return err
 		}
 
+		gsp.ScaleDirection = ScalingDirectionNone
+
 		c.GetJobAllocations(allocs, gsp)
 		c.MostUtilizedGroupResource(gsp)
 
@@ -259,6 +261,9 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 			(gsp.Tasks.Resources.MemoryPercent < gsp.ScaleInMem) {
 			gsp.ScaleDirection = ScalingDirectionIn
 		}
+
+		logging.Debug("%s: scaling action %s (CPU %.2f/%.2f/%.2f) (Mem %.2f/%.2f/%.2f)", jobName, gsp.ScaleDirection, gsp.Tasks.Resources.CPUPercent, gsp.ScaleInCPU, gsp.ScaleOutCPU, gsp.Tasks.Resources.MemoryPercent, gsp.ScaleInMem, gsp.ScaleOutMem)
+
 	}
 	return
 }

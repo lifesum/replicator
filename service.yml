@@ -8,12 +8,9 @@ tasks:
     network:
       mode: host
     resources:
-      cpu_reservation: 256
-      memory_reservation: 256
+      cpu_reservation: 128
+      memory_reservation: 64
     type: worker
-environment:
-  NOMAD_HOST: 'https://nomad.$(SYSTEM_DOMAIN)'
-  CONSUL_HOST: 'consul.$(SYSTEM_DOMAIN):8500'
 provisioning:
   image: lifesum-docker/base:latest
   commands:
@@ -33,7 +30,7 @@ provisioning:
     config:
       commands:
       - cd /go/src/github.com/elsevier-core-engineering/replicator && GOPATH=/go make
-      - cp /go/bin/replicator /replicator && rm -rf /go
+      - cp /go/bin/replicator /replicator && cp /go/src/github.com/elsevier-core-engineering/replicator/service.yml / && rm -rf /go
   - command: apk-packages
     config:
       remove:
