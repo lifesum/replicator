@@ -276,12 +276,28 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 
 // GetJobAllocations identifies all allocations for an active job.
 func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp *structs.GroupScalingPolicy) {
+	var cpuPercentAll float64
+	var memPercentAll float64
+	nAllocs := 0
+
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == StateRunning) && (allocationStub.DesiredStatus == "run") {
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, &nomad.QueryOptions{}); err == nil && alloc != nil {
-				c.GetAllocationStats(alloc, gsp)
+				cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
+				cpuPercentAll += cpuPercent
+				memPercentAll += memPercent
+				nAllocs++
 			}
 		}
+	}
+	if nAllocs > 0 {
+		gsp.Tasks.Resources.CPUPercent = cpuPercentAll / float64(nAllocs)
+		gsp.Tasks.Resources.MemoryPercent = memPercentAll / float64(nAllocs)
+
+	} else {
+		gsp.Tasks.Resources.CPUPercent = 0
+		gsp.Tasks.Resources.MemoryPercent = 0
+
 	}
 }
 
@@ -341,11 +357,11 @@ func (c *nomadClient) VerifyNodeHealth(nodeIP string) (healthy bool) {
 
 // GetAllocationStats discovers the resources consumed by a particular Nomad
 // allocation.
-func (c *nomadClient) GetAllocationStats(allocation *nomad.Allocation, scalingPolicy *structs.GroupScalingPolicy) {
+func (c *nomadClient) GetAllocationStats(allocation *nomad.Allocation, scalingPolicy *structs.GroupScalingPolicy) (float64, float64) {
 	stats, err := c.nomad.Allocations().Stats(allocation, &nomad.QueryOptions{})
 	if err != nil {
 		logging.Error("client/nomad: failed to retrieve allocation statistics from client %v: %v\n", allocation.NodeID, err)
-		return
+		return 0, 0
 	}
 
 	cs := stats.ResourceUsage.CpuStats
@@ -353,10 +369,9 @@ func (c *nomadClient) GetAllocationStats(allocation *nomad.Allocation, scalingPo
 
 	logging.Debug("%s: tics: %.2f", allocation.Name, cs.TotalTicks)
 
-	scalingPolicy.Tasks.Resources.CPUPercent = percent.PercentOf(int(math.Floor(cs.TotalTicks)),
-		scalingPolicy.Tasks.Resources.CPUMHz)
-	scalingPolicy.Tasks.Resources.MemoryPercent = percent.PercentOf(int((ms.RSS / bytesPerMegabyte)),
-		scalingPolicy.Tasks.Resources.MemoryMB)
+	return percent.PercentOf(int(math.Floor(cs.TotalTicks)),
+			scalingPolicy.Tasks.Resources.CPUMHz), percent.PercentOf(int((ms.RSS / bytesPerMegabyte)),
+			scalingPolicy.Tasks.Resources.MemoryMB)
 }
 
 // MaxAllowedClusterUtilization calculates the maximum allowed cluster utilization after

@@ -32,7 +32,7 @@ type NomadClient interface {
 
 	// GetAllocationStats discovers the resources consumed by a particular Nomad
 	// allocation.
-	GetAllocationStats(*nomad.Allocation, *GroupScalingPolicy)
+	GetAllocationStats(*nomad.Allocation, *GroupScalingPolicy) (float64, float64)
 
 	// GetJobAllocations identifies all allocations for an active job.
 	GetJobAllocations([]*nomad.AllocationListStub, *GroupScalingPolicy)
