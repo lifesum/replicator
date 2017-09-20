@@ -246,6 +246,7 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 		c.GetJobAllocations(allocs, gsp)
 		c.MostUtilizedGroupResource(gsp)
 
+		logging.Debug("%s: mhz: %d alloc:", jobName, gsp.Tasks.Resources.CPUMHz)
 		switch gsp.ScalingMetric {
 		case ScalingMetricProcessor:
 			if gsp.Tasks.Resources.CPUPercent > gsp.ScaleOutCPU {
@@ -344,6 +345,8 @@ func (c *nomadClient) GetAllocationStats(allocation *nomad.Allocation, scalingPo
 
 	cs := stats.ResourceUsage.CpuStats
 	ms := stats.ResourceUsage.MemoryStats
+
+	logging.Debug("%s: tics: %.2f", allocation.Name, cs.TotalTicks)
 
 	scalingPolicy.Tasks.Resources.CPUPercent = percent.PercentOf(int(math.Floor(cs.TotalTicks)),
 		scalingPolicy.Tasks.Resources.CPUMHz)
