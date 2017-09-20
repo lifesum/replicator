@@ -218,6 +218,10 @@ func (c *nomadClient) GetTaskGroupResources(jobName string, groupPolicy *structs
 		return err
 	}
 
+	// Make sure the values are zeroed
+	groupPolicy.Tasks.Resources.CPUMHz = 0
+	groupPolicy.Tasks.Resources.MemoryMB = 0
+
 	for _, group := range jobs.TaskGroups {
 		for _, task := range group.Tasks {
 			groupPolicy.Tasks.Resources.CPUMHz += *task.Resources.CPU
@@ -241,6 +245,7 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 			return err
 		}
 
+		// Reset the direction before the check
 		gsp.ScaleDirection = ScalingDirectionNone
 
 		c.GetJobAllocations(allocs, gsp)
