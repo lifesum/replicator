@@ -193,7 +193,7 @@ func ScaleInCluster(asgName, instanceIP string, svc *autoscaling.AutoScaling) er
 	err = TerminateInstance(instanceID, *svc.Config.Region)
 
 	if err != nil {
-		return fmt.Errorf("an error occurred terminating instance %v", instanceID)
+		return fmt.Errorf("an error occurred terminating instance %v (%s)", instanceID, err)
 	}
 
 	return nil
