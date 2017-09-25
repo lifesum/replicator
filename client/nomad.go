@@ -303,7 +303,8 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 				for service := range alloc.Services {
 					if k, ok := critical[service]; ok {
 						if v, ok := k[alloc.ID]; ok {
-							if v == "criticial" {
+							if v == "critical" {
+								logging.Warning("%s: is status %s, disregarding", service, v)
 								failed = true
 							}
 						}
