@@ -289,6 +289,7 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == StateRunning) && (allocationStub.DesiredStatus == "run") {
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, &nomad.QueryOptions{}); err == nil && alloc != nil {
+				logging.Debug("%s: checking map for %s", service, alloc.ID)
 				failed := false
 				for service := range alloc.Services {
 					if k, ok := critical[service]; ok {
