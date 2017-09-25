@@ -297,7 +297,6 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == nomadStructs.AllocClientStatusRunning) &&
 			(allocationStub.DesiredStatus == nomadStructs.AllocDesiredStatusRun) {
-
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, c.queryOptions()); err == nil && alloc != nil {
 				failed := false
 				for service := range alloc.Services {
