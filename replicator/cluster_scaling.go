@@ -336,6 +336,7 @@ func (r *Runner) verifyPoolScaling(workerPool *structs.WorkerPool,
 
 			// Place worker pool in failsafe mode.
 			state.FailsafeMode = true
+			metrics.IncrCounter([]string{"failsafe_count"}, 1)
 
 			// Attempt to update state tracking information in Consul.
 			if err = consulClient.PersistState(state); err != nil {
