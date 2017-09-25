@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -143,6 +144,31 @@ func (c *consulClient) ResignLeadership(key, session string) {
 	}
 
 	return
+}
+
+// ServiceHealth
+func (c *consulClient) ServiceHealth() map[string]map[string]string {
+	status := map[string]map[string]string{}
+
+	resp, _, err := c.consul.Health().State(consul.HealthCritical, nil)
+	if err != nil {
+		logging.Error("client/consul: unable to fetch health status: %v", err)
+		return status
+	}
+
+	re := regexp.MustCompile("([0-9a-f]){8}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){12}")
+
+	for _, hc := range resp {
+		allocID := re.FindString(hc.ServiceID)
+		if allocID != "" {
+			if _, ok := status[hc.ServiceName]; !ok {
+				status[hc.ServiceName] = map[string]string{}
+			}
+			status[hc.ServiceName][allocID] = hc.Status
+		}
+	}
+
+	return status
 }
 
 // renewSession is used for renewing a Consul session and accepts a channel

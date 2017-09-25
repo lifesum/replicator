@@ -279,14 +279,32 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 	var cpuPercentAll float64
 	var memPercentAll float64
 	nAllocs := 0
+	consul, err := NewConsulClient("localhost:8500", "")
+	if err != nil {
+		logging.Error("Unable to connect to consul: %#v", err)
 
+	}
+	critical := consul.ServiceHealth()
+	logging.Debug("Fetched health status: %#v", critical)
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == StateRunning) && (allocationStub.DesiredStatus == "run") {
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, &nomad.QueryOptions{}); err == nil && alloc != nil {
-				cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
-				cpuPercentAll += cpuPercent
-				memPercentAll += memPercent
-				nAllocs++
+				failed := false
+				for service := range alloc.Services {
+					if k, ok := critical[service]; ok {
+						if v, ok := k[alloc.ID]; ok {
+							if v == "criticial" {
+								failed = true
+							}
+						}
+					}
+				}
+				if !failed {
+					cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
+					cpuPercentAll += cpuPercent
+					memPercentAll += memPercent
+					nAllocs++
+				}
 			}
 		}
 	}
