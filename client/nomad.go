@@ -292,6 +292,7 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 				logging.Debug("%s: checking map for %s", alloc.Name, alloc.ID)
 				failed := false
 				for service := range alloc.Services {
+					logging.Debug("%s: checking map for %s", service, alloc.ID)
 					if k, ok := critical[service]; ok {
 						if v, ok := k[alloc.ID]; ok {
 							if v == "critical" {
