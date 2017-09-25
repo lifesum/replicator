@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/elsevier-core-engineering/replicator/logging"
 	"github.com/elsevier-core-engineering/replicator/notifier"
 	"github.com/elsevier-core-engineering/replicator/replicator/structs"
@@ -31,6 +32,7 @@ func FailsafeCheck(state *structs.ScalingState, config *structs.Config,
 	// If the failsafe circuit breaker has been tripped already, we can fail
 	// quickly here.
 	if state.FailsafeMode {
+		metrics.IncrCounter([]string{"failsafe_hit_count"}, 1)
 		return false
 	}
 
@@ -40,6 +42,8 @@ func FailsafeCheck(state *structs.ScalingState, config *structs.Config,
 		passing = false
 	}
 
+	metrics.IncrCounter([]string{"failsafe_hit_count"}, 1)
+
 	switch passing {
 	case true:
 		logging.Debug("core/failsafe: the failsafe check passes for %v %v, "+
@@ -47,6 +51,7 @@ func FailsafeCheck(state *structs.ScalingState, config *structs.Config,
 			message.ResourceID)
 	case false:
 		SetFailsafeMode(state, config, true, message)
+		metrics.IncrCounter([]string{"failsafe_count"}, 1)
 	}
 
 	return
