@@ -20,7 +20,8 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
     cluster_scaling_interval = 2
 
     telemetry {
-      statsd_address = "10.0.0.10:8125"
+      statsd_address         = "10.0.0.10:8125"
+			prometheus_metrics     = true
     }
 
     notification {
@@ -46,7 +47,8 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
 		ClusterScalingInterval: 2,
 
 		Telemetry: &structs.Telemetry{
-			StatsdAddress: "10.0.0.10:8125",
+			StatsdAddress:     "10.0.0.10:8125",
+			PrometheusMetrics: true,
 		},
 
 		Notification: &structs.Notification{

@@ -63,6 +63,8 @@ type Telemetry struct {
 	// StatsdAddress specifies the address of a statsd server to forward metrics
 	// to and should include the port.
 	StatsdAddress string `mapstructure:"statsd_address"`
+
+	PrometheusMetrics bool `mapstructure:"prometheus_metrics"`
 }
 
 // Notification is the control struct for Replicator notifications.
@@ -144,6 +146,10 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.StatsdAddress != "" {
 		config.StatsdAddress = b.StatsdAddress
+	}
+
+	if b.PrometheusMetrics {
+		config.PrometheusMetrics = b.PrometheusMetrics
 	}
 
 	return &config

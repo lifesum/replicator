@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -9,6 +11,9 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/elsevier-core-engineering/replicator/command"
 	"github.com/elsevier-core-engineering/replicator/command/base"
 	"github.com/elsevier-core-engineering/replicator/logging"
@@ -140,6 +145,7 @@ func (c *Command) parseFlags() *structs.Config {
 
 	// Telemetry configuration flags
 	flags.StringVar(&cliConfig.Telemetry.StatsdAddress, "statsd-address", "", "")
+	flag.BoolVar(&cliConfig.Telemetry.PrometheusMetrics, "prometheus-metrics", true, "")
 
 	// Notification configuration flags
 	flags.StringVar(&cliConfig.Notification.ClusterIdentifier, "cluster-identifier", "", "")
@@ -199,6 +205,18 @@ func (c *Command) setupTelemetry(config *structs.Telemetry) error {
 			return err
 		}
 		fanout = append(fanout, sink)
+	}
+
+	if telemetry.PrometheusMetrics {
+		promSink, err := prometheus.NewPrometheusSink()
+		if err != nil {
+			return err
+		}
+
+		fanout = append(fanout, promSink)
+
+		http.Handle("/metrics", promhttp.Handler())
+		go http.ListenAndServe(":5678", nil)
 	}
 
 	// Initialize the global sink
@@ -324,6 +342,10 @@ func (c *Command) Help() string {
     -statsd-address=<address:port>
       Specifies the address of a statsd server to forward metrics
       to and should include the port.
+
+    -prometheus-metrics
+      Specifices whether the agent should make Prometheus formatted
+	    metrics available at :5678/v1/metrics?format=prometheus.
 
   Notifications Options:
 
