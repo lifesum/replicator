@@ -6,8 +6,8 @@ BUILDTAGS=
 .PHONY: clean all fmt vet lint build test install static
 .DEFAULT: default
 
-#all: clean build fmt lint test vet install
-all: clean build fmt lint
+all: clean build fmt lint test vet install
+#all: clean build fmt lint
 
 build:
 	@echo "==> Running $@..."
