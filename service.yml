@@ -7,6 +7,16 @@ tasks:
     command: ['/replicator agent -log-level=debug']
     network:
       mode: host
+      binds:
+        - host: 0.0.0.0
+          container_port: 5678
+          health_check:
+            type: http
+            interval: 1000
+            timeout: 5000
+            path: /metrics
+          tags:
+            - telemetry
     resources:
       cpu_reservation: 128
       memory_reservation: 64
