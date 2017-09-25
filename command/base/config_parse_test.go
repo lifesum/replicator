@@ -21,7 +21,8 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
     scaling_concurrency      = 5
 
     telemetry {
-      statsd_address = "10.0.0.10:8125"
+      statsd_address         = "10.0.0.10:8125"
+			prometheus_metrics     = true
     }
 
     notification {
@@ -49,7 +50,8 @@ func TestConfigParse_LoadConfigFile(t *testing.T) {
 		ScalingConcurrency:     5,
 
 		Telemetry: &structs.Telemetry{
-			StatsdAddress: "10.0.0.10:8125",
+			StatsdAddress:     "10.0.0.10:8125",
+			PrometheusMetrics: true,
 		},
 
 		Notification: &structs.Notification{

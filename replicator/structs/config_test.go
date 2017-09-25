@@ -24,7 +24,8 @@ func TestStructs_Merge(t *testing.T) {
 		LogLevel:               "ERROR",
 		ClusterScalingInterval: 60,
 		Telemetry: &Telemetry{
-			StatsdAddress: "8.8.8.8:8125",
+			StatsdAddress:     "8.8.8.8:8125",
+			PrometheusMetrics: true,
 		},
 		Notification: &Notification{
 			ClusterIdentifier:   "nomad-rocks",
@@ -43,7 +44,8 @@ func TestStructs_Merge(t *testing.T) {
 		JobScalingInterval:     5,
 		ClusterScalingInterval: 60,
 		Telemetry: &Telemetry{
-			StatsdAddress: "8.8.8.8:8125",
+			StatsdAddress:     "8.8.8.8:8125",
+			PrometheusMetrics: true,
 		},
 		Notification: &Notification{
 			ClusterIdentifier:   "nomad-rocks",
@@ -61,7 +63,8 @@ func TestStructs_Merge(t *testing.T) {
 		ClusterScalingInterval: 60,
 		JobScalingInterval:     10,
 		Telemetry: &Telemetry{
-			StatsdAddress: "8.8.8.8:8125",
+			StatsdAddress:     "8.8.8.8:8125",
+			PrometheusMetrics: true,
 		},
 		Notification: &Notification{
 			ClusterIdentifier:   "nomad-rocks",
@@ -80,7 +83,8 @@ func TestStructs_Merge(t *testing.T) {
 		JobScalingInterval:     5,
 		ClusterScalingInterval: 60,
 		Telemetry: &Telemetry{
-			StatsdAddress: "8.8.8.8:8125",
+			StatsdAddress:     "8.8.8.8:8125",
+			PrometheusMetrics: true,
 		},
 		Notification: &Notification{
 			ClusterIdentifier:   "nomad-rocks",
