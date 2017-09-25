@@ -291,17 +291,19 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, &nomad.QueryOptions{}); err == nil && alloc != nil {
 				logging.Debug("%s: alloc: %#v", alloc.Name, *alloc)
 				failed := false
-				for _, service := range alloc.Services {
-					logging.Debug("%s: checking map for %s", service, alloc.ID)
-					if k, ok := critical[service]; ok {
-						if v, ok := k[alloc.ID]; ok {
-							if v == "critical" {
-								logging.Warning("%s: is status %s, disregarding", service, v)
-								failed = true
-							}
+
+				service := alloc.TaskGroup
+				// for _, service := range alloc.Services {
+				logging.Debug("%s: checking map for %s", service, alloc.ID)
+				if k, ok := critical[service]; ok {
+					if v, ok := k[alloc.ID]; ok {
+						if v == "critical" {
+							logging.Warning("%s: is status %s, disregarding", service, v)
+							failed = true
 						}
 					}
 				}
+				// }
 				if !failed {
 					cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
 					cpuPercentAll += cpuPercent
