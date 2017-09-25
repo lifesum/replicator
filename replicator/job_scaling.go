@@ -79,7 +79,7 @@ func (r *Runner) jobScaling(jobName string, jobScalingPolicies *structs.JobScali
 		}
 		consulClient.ReadState(s, true)
 
-		if !FailsafeCheck(s, r.config, 1, message) {
+		if !FailsafeCheck(s, r.config, 5, message) {
 			logging.Error("core/job_scaling: job \"%v\" and group \"%v\" is in "+
 				"failsafe mode", jobName, group.GroupName)
 			continue
