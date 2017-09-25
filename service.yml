@@ -9,6 +9,7 @@ tasks:
       mode: host
       binds:
         - host: 0.0.0.0
+          host_port: 5678
           container_port: 5678
           health_check:
             type: http
