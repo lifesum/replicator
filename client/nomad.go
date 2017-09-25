@@ -326,7 +326,7 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 		gsp.Tasks.Resources.MemoryPercent = memPercentAll / float64(nAllocs)
 
 	} else {
-		gsp.Tasks.Resources.CPUPercent = 0
+		gsp.Tasks.Resources.CPUPercent = 100
 		gsp.Tasks.Resources.MemoryPercent = 0
 
 	}
