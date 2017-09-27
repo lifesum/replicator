@@ -40,7 +40,8 @@ const bytesPerMegabyte = 1024000
 
 // Provides a wrapper to the Nomad API package.
 type nomadClient struct {
-	nomad *nomad.Client
+	nomad  *nomad.Client
+	consul structs.ConsulClient
 }
 
 // NewNomadClient is used to create a new client to interact with Nomad. The
@@ -52,8 +53,13 @@ func NewNomadClient(addr string) (structs.NomadClient, error) {
 	if err != nil {
 		return nil, err
 	}
+	consul, err := NewConsulClient("localhost:8500", "")
+	if err != nil {
+		logging.Error("Unable to connect to consul: %#v", err)
+		return nil, err
+	}
 
-	return &nomadClient{nomad: c}, nil
+	return &nomadClient{nomad: c, consul: consul}, nil
 }
 
 // NodeReverseLookup provides a method to get the ID of the worker pool node
@@ -279,12 +285,7 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 	var cpuPercentAll float64
 	var memPercentAll float64
 	nAllocs := 0
-	consul, err := NewConsulClient("localhost:8500", "")
-	if err != nil {
-		logging.Error("Unable to connect to consul: %#v", err)
-
-	}
-	critical := consul.ServiceHealth()
+	critical := c.consul.ServiceHealth()
 	logging.Debug("Fetched health status: %#v", critical)
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == StateRunning) && (allocationStub.DesiredStatus == "run") {
