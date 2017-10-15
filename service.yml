@@ -20,7 +20,7 @@ tasks:
           tags:
             - telemetry
     resources:
-      cpu_reservation: 128
+      cpu_reservation: 256
       memory_reservation: 64
     type: worker
 provisioning:
