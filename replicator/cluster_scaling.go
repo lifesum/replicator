@@ -223,8 +223,6 @@ func (s *Server) workerPoolScaling(id int, pools <-chan string,
 				logging.Error("core/cluster_scaling: an error occurred while "+
 					"attempting a scaling operation against worker pool %v: %v",
 					workerPool.Name, err)
-				state.FailsafeMode = true
-				metrics.IncrCounter([]string{"failsafe_count"}, 1)
 
 				wg.Done()
 				continue

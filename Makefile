@@ -7,7 +7,6 @@ BUILDTAGS=
 .DEFAULT: default
 
 all: clean build fmt lint test vet install
-#all: clean build fmt lint
 
 build:
 	@echo "==> Running $@..."

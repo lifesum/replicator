@@ -95,9 +95,6 @@ func (s *Server) jobScaling(id int, jobs <-chan string,
 			// Signal the wait group.
 			wg.Done()
 
-		if !FailsafeCheck(s, r.config, 5, message) {
-			logging.Error("core/job_scaling: job \"%v\" and group \"%v\" is in "+
-				"failsafe mode", jobName, group.GroupName)
 			continue
 		} else if err != nil {
 			logging.Error("core/job_scaling: unable to perform job resource "+
