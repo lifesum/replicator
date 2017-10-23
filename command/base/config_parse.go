@@ -129,6 +129,7 @@ func parseTelemetry(result **structs.Telemetry, list *ast.ObjectList) error {
 	// Check for invalid keys
 	valid := []string{
 		"statsd_address",
+		"prometheus_metrics",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return err

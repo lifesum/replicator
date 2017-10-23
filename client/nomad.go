@@ -35,7 +35,8 @@ const bytesPerMegabyte = 1024000
 
 // Provides a wrapper to the Nomad API package.
 type nomadClient struct {
-	nomad *nomad.Client
+	nomad  *nomad.Client
+	consul structs.ConsulClient
 }
 
 // NewNomadClient is used to create a new client to interact with Nomad. The
@@ -47,8 +48,13 @@ func NewNomadClient(addr string) (structs.NomadClient, error) {
 	if err != nil {
 		return nil, err
 	}
+	consul, err := NewConsulClient("localhost:8500", "")
+	if err != nil {
+		logging.Error("Unable to connect to consul: %#v", err)
+		return nil, err
+	}
 
-	return &nomadClient{nomad: c}, nil
+	return &nomadClient{nomad: c, consul: consul}, nil
 }
 
 // queryOptions sets Replicators default QueryOptions for making GET calls to
@@ -224,6 +230,10 @@ func (c *nomadClient) GetTaskGroupResources(jobName string, groupPolicy *structs
 	groupPolicy.Tasks.Resources.CPUMHz = 0
 	groupPolicy.Tasks.Resources.MemoryMB = 0
 
+	// Make sure the values are zeroed
+	groupPolicy.Tasks.Resources.CPUMHz = 0
+	groupPolicy.Tasks.Resources.MemoryMB = 0
+
 	for _, group := range jobs.TaskGroups {
 		for _, task := range group.Tasks {
 			groupPolicy.Tasks.Resources.CPUMHz += *task.Resources.CPU
@@ -247,6 +257,9 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 			return err
 		}
 
+		// Reset the direction before the check
+		gsp.ScaleDirection = ScalingDirectionNone
+
 		c.GetJobAllocations(allocs, gsp)
 		c.MostUtilizedGroupResource(gsp)
 
@@ -268,6 +281,9 @@ func (c *nomadClient) EvaluateJobScaling(jobName string, jobScalingPolicies []*s
 			(gsp.Tasks.Resources.MemoryPercent < gsp.ScaleInMem) {
 			gsp.ScaleDirection = ScalingDirectionIn
 		}
+
+		logging.Debug("%s: scaling action %s (CPU %.2f/%.2f/%.2f) (Mem %.2f/%.2f/%.2f)", jobName, gsp.ScaleDirection, gsp.Tasks.Resources.CPUPercent, gsp.ScaleInCPU, gsp.ScaleOutCPU, gsp.Tasks.Resources.MemoryPercent, gsp.ScaleInMem, gsp.ScaleOutMem)
+
 	}
 	return
 }
@@ -277,16 +293,32 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 	var cpuPercentAll float64
 	var memPercentAll float64
 	nAllocs := 0
-
+	critical := c.consul.ServiceHealth()
+	logging.Debug("Fetched health status: %#v", critical)
 	for _, allocationStub := range allocs {
 		if (allocationStub.ClientStatus == nomadStructs.AllocClientStatusRunning) &&
 			(allocationStub.DesiredStatus == nomadStructs.AllocDesiredStatusRun) {
-
 			if alloc, _, err := c.nomad.Allocations().Info(allocationStub.ID, c.queryOptions()); err == nil && alloc != nil {
-				cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
-				cpuPercentAll += cpuPercent
-				memPercentAll += memPercent
-				nAllocs++
+				failed := false
+
+				service := alloc.TaskGroup
+				// for _, service := range alloc.Services {
+				logging.Debug("%s: checking map for %s", service, alloc.ID)
+				if k, ok := critical[service]; ok {
+					if v, ok := k[alloc.ID]; ok {
+						if v == "critical" {
+							logging.Warning("%s: is status %s, disregarding", service, v)
+							failed = true
+						}
+					}
+				}
+				// }
+				if !failed {
+					cpuPercent, memPercent := c.GetAllocationStats(alloc, gsp)
+					cpuPercentAll += cpuPercent
+					memPercentAll += memPercent
+					nAllocs++
+				}
 			}
 		}
 	}
@@ -295,7 +327,7 @@ func (c *nomadClient) GetJobAllocations(allocs []*nomad.AllocationListStub, gsp 
 		gsp.Tasks.Resources.MemoryPercent = memPercentAll / float64(nAllocs)
 
 	} else {
-		gsp.Tasks.Resources.CPUPercent = 0
+		gsp.Tasks.Resources.CPUPercent = 100
 		gsp.Tasks.Resources.MemoryPercent = 0
 
 	}

@@ -25,4 +25,7 @@ type ConsulClient interface {
 	// replicator daemon. If this is unsuccessful there is not too much we can do
 	// therefore there is no return.
 	ResignLeadership(string, string)
+
+	// ServiceHealth
+	ServiceHealth() map[string]map[string]string
 }

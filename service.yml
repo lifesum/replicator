@@ -1,0 +1,50 @@
+---
+version: 1.3
+name: replicator
+tasks:
+  - name: agent
+    command: ['/replicator agent -log-level=debug']
+    network:
+      mode: host
+      binds:
+        - host: 0.0.0.0
+          name: telemetry
+          hide_from_gateway: true
+          host_port: 5678
+          container_port: 5678
+          health_check:
+            type: http
+            interval: 1000
+            timeout: 5000
+            path: /metrics
+          tags:
+            - telemetry
+    resources:
+      cpu_reservation: 256
+      memory_reservation: 64
+    type: worker
+provisioning:
+  image: lifesum-docker/base:latest
+  commands:
+  - command: shell
+    config:
+      commands:
+      - mkdir -p /go/src/github.com/elsevier-core-engineering/
+  - command: src-copy
+    config:
+      destination: /go/src/github.com/elsevier-core-engineering/replicator
+  - command: apk-packages
+    config:
+      add:
+      - alpine-sdk
+      - go
+  - command: shell
+    config:
+      commands:
+      - cd /go/src/github.com/elsevier-core-engineering/replicator && GOPATH=/go make
+      - cp /go/bin/replicator /replicator && cp /go/src/github.com/elsevier-core-engineering/replicator/service.yml / && rm -rf /go
+  - command: apk-packages
+    config:
+      remove:
+      - alpine-sdk
+      - go
