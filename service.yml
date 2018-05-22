@@ -3,7 +3,7 @@ version: 1.3
 name: replicator
 tasks:
   - name: agent
-    command: ['/replicator agent -log-level=debug']
+    command: ['env;/replicator agent -log-level=debug']
     network:
       mode: host
       binds:
@@ -23,6 +23,11 @@ tasks:
       cpu_reservation: 256
       memory_reservation: 64
     type: worker
+
+environment:
+  TEST_NOMAD_TOKEN: "{{nomad.$(ENV).acl.creds.default}}"
+  TEST_CONSUL_TOKEN: "{{consul.$(ENV).acl.creds.default}}"
+
 provisioning:
   image: lifesum-docker/base:latest
   commands:
