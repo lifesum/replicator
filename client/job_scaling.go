@@ -25,6 +25,11 @@ func (c *nomadClient) JobGroupScale(jobName string, group *structs.GroupScalingP
 	// running job from Nomad.
 	jobResp, _, err := c.nomad.Jobs().Info(jobName, &nomad.QueryOptions{})
 
+	// Here we disable canary updates since it's not really useful when just "setting" the desired count.
+	if jobResp.Update != nil {
+		jobResp.Update.Canary = nil
+	}
+
 	if err != nil {
 		logging.Error("client/job_scaling: unable to determine job info of %v: %v", jobName, err)
 		return
