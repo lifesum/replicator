@@ -38,6 +38,7 @@ func (c *nomadClient) JobGroupScale(jobName string, group *structs.GroupScalingP
 	// Use the current task count in order to determine whether or not a scaling
 	// event will violate the min/max job policy.
 	for i, taskGroup := range jobResp.TaskGroups {
+		// Here we disable canary updates since it's not really useful when just "setting" the desired count.
 		if taskGroup.Update != nil {
 			taskGroup.Update.Canary = nil
 		}
